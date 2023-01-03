@@ -1,11 +1,14 @@
 #!/bin/bash
 
+# output coloring
 red='\033[0;31m'
 nc='\033[0m'
-ext="c"
+ext=$'c\ncpp\nh\nhpp'
+ext=$(echo "$ext")
 
 # support filenames with spaces:
-IFS=$(echo -en "\n")
+#IFS=$(echo -en "\n")
+IFS=$'\n'
 
 if [ $# -gt 0 ] 
 then
@@ -18,14 +21,22 @@ working_dir_name=$(echo $working_dir | sed 's|.*/||')
 all_files="$working_dir/../$working_dir_name-filelist.txt"
 remaining_files="$working_dir/../$working_dir_name-remaining.txt"
 
+# initialize the log file
+> $all_files
+> $remaining_files
+
 # get information about files:
-find -type f -print0 | xargs -0 stat -c "%s %n" | grep -v "/\." | \
-        grep "\.$ext" | sort -nr > $all_files
+for ex in ${ext[@]}; do
+	find -type f -print0 | xargs -0 stat -c "%s %n" | grep -v "/\." | \
+		grep "\.${ex}$" | sort -nr  >> $all_files
+done
+
 
 cp $all_files $remaining_files
 
 while read string; do
         fileA=$(echo $string | sed 's/.[^.]*\./\./')
+	extA=${fileA##*.}
         tail -n +2 "$remaining_files" > $remaining_files.temp
         mv $remaining_files.temp $remaining_files
         # remove empty lines since they produce false positives
@@ -35,6 +46,11 @@ while read string; do
 
         while read string; do
                 fileB=$(echo $string | sed 's/.[^.]*\./\./')
+		extB=${fileB##*.}
+		if [[ $extA != $extB ]]
+		then
+			continue
+		fi
                 sed '/^$/d' $fileB > tempB
                 A_len=$(cat tempA | wc -l)
                 B_len=$(cat tempB | wc -l)
@@ -44,7 +60,7 @@ while read string; do
                 common=$(expr $A_len - $differences)
 
                 percentage=$(echo "100 * $common / $B_len" | bc)
-                if [[ $percentage -gt 80 ]]; then
+                if [[ $percentage -gt 90 ]]; then
                         echo -e "$red  $percentage% duplication in" \
                                         "$(echo $fileB | sed 's|\./||')" \
                                         "$nc"
