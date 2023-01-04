@@ -1,10 +1,12 @@
 #!/bin/bash
 
+
 # output coloring
 red='\033[0;31m'
 nc='\033[0m'
 ext=$'c\ncpp\nh\nhpp'
-ext=$(echo "$ext")
+#ext=$(echo "$ext")
+cur="$PWD"
 
 # support filenames with spaces:
 #IFS=$(echo -en "\n")
@@ -16,6 +18,7 @@ then
 else
         echo -e "Usage:   ./plagarism [dir] "
 fi
+
 working_dir="$PWD"
 working_dir_name=$(echo $working_dir | sed 's|.*/||')
 all_files="$working_dir/../$working_dir_name-filelist.txt"
@@ -39,41 +42,23 @@ while read string; do
 	extA=${fileA##*.}
         tail -n +2 "$remaining_files" > $remaining_files.temp
         mv $remaining_files.temp $remaining_files
-        # remove empty lines since they produce false positives
-        sed '/^$/d' $fileA > tempA
 
         echo Comparing $fileA with other files...
-
         while read string; do
-                fileB=$(echo $string | sed 's/.[^.]*\./\./')
-		extB=${fileB##*.}
-		if [[ $extA != $extB ]]
-		then
-			continue
-		fi
-                sed '/^$/d' $fileB > tempB
-                A_len=$(cat tempA | wc -l)
-                B_len=$(cat tempB | wc -l)
 
-                #look at manual of sdiff for options
-                differences=$(sdiff -BWZbdEi -s tempA tempB | wc -l)
-                common=$(expr $A_len - $differences)
-
-                percentage=$(echo "100 * $common / $B_len" | bc)
-                if [[ $percentage -gt 90 ]]; then
-                        echo -e "$red  $percentage% duplication in" \
-                                        "$(echo $fileB | sed 's|\./||')" \
-                                        "$nc"
-                fi
+		fileB=$(echo $string | sed 's/.[^.]*\./\./')
+		bash $cur/compare.sh "$fileA" "$extA" "$fileB" "$1" &
+		 
         done < "$remaining_files"
+	wait 
         echo " "
 done < "$all_files"
 
-if [ -e tempA ]
+if [ -e $all_files ]
 then
-        rm tempA
+        rm "$all_files"
 fi
-if [ -e tempB ]
+if [ -e $remaining_files ]
 then
-        rm tempB
+        rm "$remaining_files"
 fi
