@@ -1,4 +1,10 @@
 #!/bin/bash
+help_msg (){
+	echo "-h help message"
+	echo "-e extension name (default c, h, cpp) like \"java py\""
+	echo "-d difference ratio (default 90)"
+	echo "Usage: ./plagiarism_checker [-e file extension][dir]"
+}
 
 
 # output coloring
@@ -7,17 +13,50 @@ nc='\033[0m'
 ext=$'c\ncpp\nh\nhpp'
 #ext=$(echo "$ext")
 cur="$PWD"
+dif=90
 
 # support filenames with spaces:
 #IFS=$(echo -en "\n")
 IFS=$'\n'
 
-if [ $# -gt 0 ] 
-then
-        cd "$1" || echo "$1 is not directory" 
-else
-        echo -e "Usage:   ./plagarism [dir] "
-fi
+while [ $# -gt 0 ];do
+	case $1 in 
+	-e | --extension)
+		ext="$2"
+		shift
+		shift
+		;;
+	-d | --diff)
+		dif="$2"
+		shift
+		shift
+		;;
+
+	-h | --help)
+		help_msg
+		shift
+		;;
+
+	-* | --*)
+		help_msg
+		shift
+		;;
+	*)
+		POSITIONAL_ARGS+=("$1")
+		shift
+		;;
+	esac
+done
+
+# Restore the positional args
+set -- "${POSITIONAL_ARGS[@]}"
+
+# Replace ' ' to '\n'
+ext=$(echo $ext | sed "s/ /\n/g")
+
+	
+		
+cd "$1" || echo "$1 is not directory" 
 
 working_dir="$PWD"
 working_dir_name=$(echo $working_dir | sed 's|.*/||')
@@ -47,7 +86,7 @@ while read string; do
         while read string; do
 
 		fileB=$(echo $string | sed 's/.[^.]*\./\./')
-		bash $cur/compare.sh "$fileA" "$extA" "$fileB" "$1" &
+		bash $cur/compare.sh "${fileA}" "${extA}" "${fileB}" "$1" $dif &
 		 
         done < "$remaining_files"
 	wait 
